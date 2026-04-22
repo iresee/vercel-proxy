@@ -19,17 +19,15 @@ export default async function handler(request) {
   const targetUrl = url.searchParams.get('url');
 
   if (!targetUrl) {
-    return new Response('Missing target URL parameter', { status: 400 });
+    return new Response('Missing target URL parameter', { status: 400, headers: corsHeaders });
   }
 
   if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-    return new Response('Invalid URL scheme', { status: 400 });
+    return new Response('Invalid URL scheme', { status: 400, headers: corsHeaders });
   }
 
   try {
     // 3. 构建代理请求头
-    // 【核心优化】：不要拷贝 request.headers，防止 Vercel 特征暴露
-    // 只需要透传 User-Agent 即可
     const fetchHeaders = new Headers();
     const userAgent = request.headers.get('user-agent');
     if (userAgent) {
@@ -38,7 +36,7 @@ export default async function handler(request) {
 
     const fetchOptions = {
       method: request.method,
-      headers: fetchHeaders, // 使用干净的 Headers
+      headers: fetchHeaders,
       redirect: 'follow',
     };
 
@@ -53,10 +51,12 @@ export default async function handler(request) {
 
     // 5. 处理响应头
     const responseHeaders = new Headers(response.headers);
+    
     // 注入允许跨域的 Header
     for (const [key, value] of Object.entries(corsHeaders)) {
       responseHeaders.set(key, value);
     }
+    
     // 删除 content-encoding，由 Vercel 自动处理压缩，防止乱码
     responseHeaders.delete('content-encoding'); 
     
